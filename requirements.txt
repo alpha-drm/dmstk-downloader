@@ -1,0 +1,6 @@
+beautifulsoup4
+browser-cookie3
+colorama
+coloredlogs
+pyfiglet
+requests

@@ -1,0 +1,10 @@
+.DS_store
+.env
+*.json
+*.log
+courses/
+logs_dmstk/
+Logs/
+venv/
+virtual/
+json/
