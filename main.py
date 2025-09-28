@@ -1,18 +1,19 @@
 import argparse
-from bs4 import BeautifulSoup
-import browser_cookie3
-import time
-import requests
 import json
 import logging
-import coloredlogs
 import os
-import subprocess
 import re
-from urllib.parse import urlparse, unquote
-from colorama import Fore, Back, Style, init
+import subprocess
+import time
+from typing import Any, Dict, Optional
+from urllib.parse import unquote, urlparse
+
+import browser_cookie3
+import coloredlogs
+import requests
+from bs4 import BeautifulSoup
+from colorama import Back, Fore, Style, init
 from pyfiglet import Figlet
-from typing import Dict, Any, Optional
 
 # --- CONSTANTES ---
 LOG_DIR = "logs_dmstk"
@@ -34,10 +35,10 @@ def setup_logging():
         'error': {'color': 'red'},
         'critical': {'bold': True, 'color': 'red'}
     }
-    
+
     # Crear directorio de logs si no existe
     os.makedirs(LOG_DIR, exist_ok=True)
-    
+
     log_filename = f"{time.strftime('%d-%m-%Y_%H-%M-%S')}.log"
     log_filepath = os.path.join(LOG_DIR, log_filename)
 
@@ -109,7 +110,7 @@ def create_session(browser: str) -> Optional[requests.Session]:
         cj = cookie_fn(domain_name="domestika")
     except (AttributeError, browser_cookie3.BrowserCookieError) as e:
         logger.error(f"No se pudieron cargar las cookies para '{browser}': {e}")
-        logger.error("Asegúrate de haber iniciado sesión en Domestika en ese navegador.")
+        logger.error("Asegúrate de haber iniciado sesión en ese navegador.")
         return None
 
     session = requests.Session()
@@ -125,14 +126,14 @@ def extract_initial_props(unit_link: str, session: requests.Session) -> Optional
     try:
         response = session.get(unit_link)
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.content, 'html.parser')
         script_tag = soup.find('script', string=re.compile(r"window\.__INITIAL_PROPS__"))
-        
+
         if not script_tag:
             logger.warning("No se encontró el script __INITIAL_PROPS__ en la página.")
             return None
-            
+
         match = re.search(r"JSON\.parse\('(.+?)'\);", script_tag.string)
         if match:
             json_string = match.group(1).replace('\\"', '"').replace('\\\\', '\\')
@@ -142,20 +143,20 @@ def extract_initial_props(unit_link: str, session: requests.Session) -> Optional
         logger.warning(f"No tienes acceso a esta lección o hubo un error de red: {e}")
     except json.JSONDecodeError as e:
         logger.error(f"Error al decodificar el JSON de INITIAL_PROPS: {e}")
-    
+
     return None
 
 
 def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: str):
     """Descarga un video usando N_m3u8DL-RE."""
     output_file = os.path.join(save_dir, file_name + '.mp4')
-    
+
     if os.path.exists(output_file):
         logger.warning(f"El archivo '{file_name}.mp4' ya existe.")
         return
 
     os.makedirs(save_dir, exist_ok=True)
-    
+
     logger.info(f"Descargando video: '{file_name}'")
     command = [
         'N_m3u8DL-RE',
@@ -165,10 +166,10 @@ def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: 
         '--save-dir', save_dir,
         '--save-name', file_name
     ]
-    
+
     try:
         process = subprocess.Popen(command)
-        process.wait() 
+        process.wait()
         if process.returncode != 0:
             logger.error(f"Error al descargar '{file_name}'. Código de salida: {process.returncode}")
     except FileNotFoundError:
@@ -183,7 +184,7 @@ def download_attachments(session: requests.Session, url: str, save_dir: str):
     try:
         response = session.get(url)
         response.raise_for_status()
-        
+
         soup = BeautifulSoup(response.content, "html.parser")
         file_links = soup.select('h3.material-item__title a[href]')
 
@@ -197,12 +198,12 @@ def download_attachments(session: requests.Session, url: str, save_dir: str):
         for link in file_links:
             file_url = link['href']
             file_response = session.get(file_url)
-            
+
             if file_response.status_code == 200:
                 path = urlparse(file_response.url).path
                 filename = unquote(os.path.basename(path))
                 file_path = os.path.join(save_dir, filename)
-                
+
                 logger.info(f" -> Descargando '{filename}'")
                 with open(file_path, 'wb') as f:
                     f.write(file_response.content)
@@ -227,10 +228,10 @@ def scrape_course(url: str, browser: str, quality: str, lang: str):
         return
 
     soup = BeautifulSoup(response.content, "html.parser")
-    
+
     # --- 1. Extraer Título y Portada ---
     title_element = soup.find('h1', class_=lambda c: c and ('course-header-new__title' in c or 'my-[10px]' in c))
-    
+
     if not title_element:
         logger.error("No se pudo encontrar el título del curso.")
         return
@@ -260,7 +261,7 @@ def scrape_course(url: str, browser: str, quality: str, lang: str):
         title_element = unit.select_one('h4.unit-item__title a')
         if not title_element:
             continue
-  
+
         unit_title = sanitize_and_trim_filename(title_element.text, course_dir)
         unit_link = title_element['href']
         unit_dir = os.path.join(course_dir, unit_title)
@@ -296,10 +297,10 @@ def scrape_course(url: str, browser: str, quality: str, lang: str):
 # --- INICIO DEL PROCESO ---
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Script para descargar cursos de Dmstk.",
+        description="Dmstk-Downloader.",
         formatter_class=argparse.RawTextHelpFormatter
     )
-    
+
     parser.add_argument("url", help="URL completa del curso a descargar.")
     parser.add_argument(
         "-b", "--browser",
@@ -317,7 +318,7 @@ if __name__ == "__main__":
         help="Idioma preferido para los subtítulos (ej: Español, English).",
         default="Español",
     )
-    
+
     args = parser.parse_args()
 
     setup_logging()
@@ -329,16 +330,16 @@ if __name__ == "__main__":
         logger.error("La URL proporcionada no es válida. Formato esperado: https://www.domestika.org/.../courses/...")
     else:
         start_time = time.time()
-        
+
         scrape_course(validated_url, args.browser, args.quality, args.lang)
-        
+
         end_time = time.time()
         elapsed_time = end_time - start_time
         hours, rem = divmod(elapsed_time, 3600)
         minutes, seconds = divmod(rem, 60)
-        
+
         print()
-        
+
         logger.info("Proceso Finalizado.")
         logger.info(f'Duración total: {int(hours)}h {int(minutes)}m {int(seconds)}s.')
         print()
