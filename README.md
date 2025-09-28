@@ -40,6 +40,8 @@ Herramienta `CLI` que permite a usuarios con suscripción descargar cursos para 
 
 ## Instalación
 
+### Windows
+
 - Crear una carpeta llamada `tools` o el nombre que quieran en en el disco `C:\`, dentro copiar los ejecutables (N_m3u8DL-RE, ffmpeg) y por último agregar la ruta de la carpeta al `PATH` del sistema.
 
 - Opcional: copiar el ejecutable directamente en el directorio raíz del proyecto.
@@ -52,9 +54,9 @@ C:\tools
    └── N_m3u8DL-RE.exe
 ```
 
-### Windows
+#### Clonar el proyecto
 
-Clonar el proyecto usando `GIT`, o simplemente descargar el archivo `ZIP` del repositorio
+Desde una terminal clonar el proyecto usando `GIT`, o simplemente descargar el archivo `ZIP` del repositorio.
 
 ```bash
 git clone https://github.com/alpha-drm/dmstk-downloader.git
@@ -69,6 +71,7 @@ cd dmstk-downloader
 
 #### Entorno virtual
   Es recomendable crear un entorno virtual para instalar los `requirements.txt` del proyecto
+
 ```bash
 python -m venv env
 ```
@@ -84,14 +87,16 @@ env\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Cookies
+### Cookies
 
 > [!IMPORTANT]
 > Estar logueado en la plataforma, usar `firefox` preferiblemente.
 
-El script utiliza cookies para autenticación y lo extrae automáticamente. Opcional, puedes especificar de que navegador extraer las cookies con el argumento `-b` o `--browser`. Las opciones son:
+El script utiliza cookies para autenticación y lo extrae automáticamente. Opcional: especificar de que navegador extraer las cookies con el argumento `-b` o `--browser`.
 
-- `firefox` por defecto, recomendado.
+Opciones:
+
+- `firefox` Default, recomendado.
 - `chrome`
 - `edge`
 - `brave`
@@ -105,6 +110,7 @@ Opciones:
 - `-b`, `--browser` Navegador de donde extraer las cookies {firefox, chrome, edge, brave}
 - `-q`, `--quality` Resolución de video (ej: 1080, 720). Default: 1080
 - `-l`, `--lang` Idioma para los subtítulos (ej: Español, English). Default: Español
+- `-h`, `--help` Ayuda
 
 Ejemplos:
 
@@ -123,7 +129,7 @@ Descargar una calidad específica. Default: 1080
 python main.py https://www.domestika.org/es/courses/3414-gimnasio-de-escritura-de-la-hoja-en-blanco-a-la-practica-cotidiana/course -q 720
 ```
 
-Descargar subtítulo con un lenguaje específico. Default: Español
+Descargar subtítulo con un lenguaje específico si está disponible. Default: Español
 ```bash
 python main.py https://www.domestika.org/es/courses/3414-gimnasio-de-escritura-de-la-hoja-en-blanco-a-la-practica-cotidiana/course -l English
 ```
@@ -146,7 +152,7 @@ Para comentarios o reportes de errores utilizar [GitHub Issues](https://github.c
 
 ## License
 
-Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](https://github.com/alpha-drm/dmstk-downloader/blob/main/LICENSE) para más detalles.
+Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](./LICENSE) para más detalles.
 
 ## Aviso Legal
 
