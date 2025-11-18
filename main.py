@@ -74,7 +74,7 @@ def sanitize_and_trim_filename(name: str, base_path: str, limite: int = 200) -> 
         str: Nombre limpio y recortado si es necesario.
     """
     # 1. Limpiar caracteres no válidos
-    cleaned_name = re.sub(r'[<>:"/\\|?*]', '_', name).strip()
+    cleaned_name = re.sub(r'[<>:"/\\|?*]', '', name).strip()
 
     # 2. Calcular longitud total
     ruta_base = os.path.abspath(base_path)
@@ -160,7 +160,7 @@ def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: 
     logger.info(f"Descargando video: '{file_name}'")
     command = [
         'N_m3u8DL-RE',
-        '-sv', f'res={quality}',
+        '-sv', f'res=({quality}|720)',
         url,
         '-ss', f'name={lang}',
         '--save-dir', save_dir,
@@ -242,56 +242,65 @@ def scrape_course(url: str, browser: str, quality: str, lang: str):
 
     logger.info(f"CURSO: {course_title.upper()}")
 
-    pattern = r'https://imgproxy\.domestika\.org/unsafe/s:\d+:\d+/rs:fill/ex:true/el:true/plain/src://course-covers/\d+/\d+/\d+/\d+-original\.jpg\?\d+'
+    pattern = r'https://imgproxy\.domestika\.org/unsafe/s:\d+:\d+/rs:fill/ex:true/el:true/plain/src://course-covers/\d+/\d+/\d+/\d+-original\.(jpg|jpeg|png|webp|avif)\?\d+'
     cover_match = re.search(pattern, str(soup))
     if cover_match:
         cover_url = cover_match.group(0)
+        ext = cover_match.group(1)  # grupo (jpg|jpeg|png|webp|avif)
         logger.info("Descargando imagen de portada...")
+        logger.info(f"URL: {cover_url}")
         try:
             resp = session.get(cover_url)
             if resp.status_code == 200:
-                with open(os.path.join(course_dir, 'cover.jpg'), 'wb') as f:
+                with open(os.path.join(course_dir, f"cover.{ext}"), "wb") as f:
                     f.write(resp.content)
         except requests.exceptions.RequestException:
             logger.warning("No se pudo descargar la imagen de portada.")
 
     # --- 2. Procesar Unidades y Lecciones ---
     units = soup.find_all('li', class_='unit-item')
-    for unit in units:
-        title_element = unit.select_one('h4.unit-item__title a')
-        if not title_element:
-            continue
+    if units:
+        for unit in units:
+            title_element = unit.select_one('h4.unit-item__title a')
+            if not title_element:
+                continue
 
-        unit_title = sanitize_and_trim_filename(title_element.text, course_dir)
-        unit_link = title_element['href']
-        unit_dir = os.path.join(course_dir, unit_title)
+            unit_title = sanitize_and_trim_filename(title_element.text, course_dir)
+            unit_link = title_element['href']
+            unit_dir = os.path.join(course_dir, unit_title)
 
-        logger.info(f"\n--- PROCESANDO UNIDAD: {unit_title} ---")
+            logger.info(f"\n--- PROCESANDO UNIDAD: {unit_title} ---")
 
-        data = extract_initial_props(unit_link, session)
-        if not data:
-            continue
+            data = extract_initial_props(unit_link, session)
+            if not data:
+                continue
 
-        # Lecciones en video de la unidad
-        if data.get('videos') and isinstance(data['videos'], list):
-            for i, lesson in enumerate(data['videos'], 1):
-                lesson_title = sanitize_and_trim_filename(lesson['video']['title'], course_dir)
-                file_name = f"{i:02d} - {lesson_title}"
-                download_video(lesson['video']['playbackURL'], unit_dir, file_name, quality, lang)
+            # Lecciones en video de la unidad
+            if data.get('videos') and isinstance(data['videos'], list):
+                for i, lesson in enumerate(data['videos'], 1):
+                    lesson_title = sanitize_and_trim_filename(lesson['video']['title'], course_dir)
+                    file_name = f"{i:02d} - {lesson_title}"
+                    download_video(lesson['video']['playbackURL'], unit_dir, file_name, quality, lang)
 
-        # Proyecto Final (si está en esta "unidad")
-        if data.get('video'):
-            project_title = sanitize_and_trim_filename(data.get('title', 'Proyecto Final'), course_dir)
-            project_dir = os.path.join(course_dir, project_title)
-            file_name = f"01 - {project_title}"
-            download_video(data['video']['playbackURL'], project_dir, file_name, quality, lang)
+            # Proyecto Final
+            if data.get('video'):
+                response = session.get(unit_link, allow_redirects=False)
+                # print(response.headers.get("Location"))
+                if response.status_code != 200:
+                    logger.info("¡¡¡ SIN ACCESO AL PROYECTO FINAL !!!")
+                else:
+                    project_title = "Proyecto Final"
+                    project_dir = os.path.join(course_dir, project_title)
+                    download_video(data['video']['playbackURL'], project_dir, project_title, quality, lang)
 
-    # --- 3. Descargar Recursos Adicionales ---
-    resources_tag = soup.find('li', string=lambda t: t and ('Recursos adicionales' in t or 'Additional Resources' in t))
-    if resources_tag and resources_tag.find('a'):
-        resources_link = resources_tag.find('a')['href']
-        resources_dir = os.path.join(course_dir, 'Recursos Adicionales')
-        download_attachments(session, resources_link, resources_dir)
+        # --- 3. Descargar Recursos Adicionales ---
+        resources_tag = soup.find('li', string=lambda t: t and ('Recursos adicionales' in t or 'Additional Resources' in t))
+        if resources_tag and resources_tag.find('a'):
+            resources_link = resources_tag.find('a')['href']
+            resources_dir = os.path.join(course_dir, 'Recursos Adicionales')
+            download_attachments(session, resources_link, resources_dir)
+        else:
+            logger.info("!!! SIN ACCESO A RECURSOS !!!")
 
 
 # --- INICIO DEL PROCESO ---
