@@ -44,7 +44,7 @@ Herramienta `CLI` que permite a usuarios con suscripción descargar cursos para 
 
 - Crear una carpeta llamada `tools` o el nombre que quieran en en el disco `C:\`, dentro copiar los ejecutables (N_m3u8DL-RE, ffmpeg) y por último agregar la ruta de la carpeta al `PATH` del sistema.
 
-- Opcional: copiar el ejecutable directamente en el directorio raíz del proyecto.
+- Opcional: copiar los ejecutables directamente en el directorio raíz del proyecto, no necesitas agregarlo al `PATH` del sistema.
 
 Estructura final: `C:\tools`
 
