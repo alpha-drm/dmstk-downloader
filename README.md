@@ -107,31 +107,36 @@ Opciones:
 python main.py <url> [opciones]
 ```
 Opciones:
-- `-b`, `--browser` Navegador de donde extraer las cookies {firefox, chrome, edge, brave}
-- `-q`, `--quality` Resolución de video (ej: 1080, 720). Default: 1080
-- `-l`, `--lang` Idioma para los subtítulos (ej: Español, English). Default: Español
+- `-b`, `--browser` Navegador para obtener las cookies {firefox, chrome, edge, brave}
+- `-q`, `--quality` Resolución de video (ej: 1080, 720, 540). Default: 1080
+- `-l`, `--lang` Idioma del subtítulo. (ej: es, en, pt, it, fr, de)
+- `-a`, `--audio` Audio secundario para el video. Opcional (ej: es, en, pt, it, fr, de)
 - `-h`, `--help` Ayuda
 
 Ejemplos:
 
-Descargar usando las cookies del navegador por defecto `firefox`:
+Obtener las cookies del navegador por defecto `firefox`:
 ```bash
-python main.py https://www.domestika.org/es/courses/3414-gimnasio-de-escritura-de-la-hoja-en-blanco-a-la-practica-cotidiana/course
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course
 ```
 
-Descargar usando las cookies de otro navegador:
+Obtener las cookies de un navegador específico:
 ```bash
-python main.py https://www.domestika.org/es/courses/3414-gimnasio-de-escritura-de-la-hoja-en-blanco-a-la-practica-cotidiana/course --browser edge
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course --browser edge
 ```
 
-Descargar una calidad específica. Default: 1080
+Seleccionar la calidad del video. Default: 1080
 ```bash
-python main.py https://www.domestika.org/es/courses/3414-gimnasio-de-escritura-de-la-hoja-en-blanco-a-la-practica-cotidiana/course -q 720
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -q 720
 ```
 
-Descargar subtítulo con un lenguaje específico si está disponible. Default: Español
+Seleccionar idioma del subtítulo. Ej: es, en, pt, it, fr, de. Default: Español (es).
 ```bash
-python main.py https://www.domestika.org/es/courses/3414-gimnasio-de-escritura-de-la-hoja-en-blanco-a-la-practica-cotidiana/course -l English
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -l en
+```
+Opcional: seleccionar audio secundario. Ej: es, en, pt, it, fr, de.
+```bash
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -a en
 ```
 
 ## Estructura de archivos
