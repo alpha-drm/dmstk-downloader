@@ -60,7 +60,7 @@ def banner():
 
 # --- FUNCIONES AUXILIARES ---
 
-def sanitize_and_trim_filename(name: str, base_path: str, limite: int = 200) -> str:
+def sanitize_and_trim_filename(name: str, base_path: str, limite: int = 200, temp_suffix_len: int = 18) -> str:
     """
     Limpia un nombre de archivo de caracteres no válidos y lo recorta si la ruta completa
     excede un límite de longitud.
@@ -80,12 +80,12 @@ def sanitize_and_trim_filename(name: str, base_path: str, limite: int = 200) -> 
     ruta_base = os.path.abspath(base_path)
     ruta_completa = os.path.join(ruta_base, cleaned_name)
 
-    if len(ruta_completa) <= limite:
+    if len(ruta_completa) <= (limite - temp_suffix_len):
         return cleaned_name
 
     # 3. Calcular cuánto espacio hay para el nombre del archivo
     base_len = len(os.path.join(ruta_base, ""))
-    espacio_disponible = limite - base_len
+    espacio_disponible = limite - base_len - temp_suffix_len
 
     # 4. Recortar el nombre y devolver
     nombre_recortado = cleaned_name[:espacio_disponible].rstrip()
@@ -147,31 +147,92 @@ def extract_initial_props(unit_link: str, session: requests.Session) -> Optional
     return None
 
 
-def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: str):
-    """Descarga un video usando N_m3u8DL-RE."""
+def find_audio_file(save_dir: str, file_name: str, audio: str) -> str | None:
+    audio = audio.lower()
+
+    for f in os.listdir(save_dir):
+        if not f.lower().endswith(".m4a"):
+            continue
+
+        if not f.startswith(file_name + "."):
+            continue
+
+        # archivo.es.m4a / archivo.es_la.m4a
+        lang_part = f[len(file_name) + 1 : -4].lower()
+
+        if lang_part == audio or lang_part.startswith(audio) or audio.startswith(lang_part):
+            return os.path.join(save_dir, f)
+
+    return None
+
+
+def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: str, audio: str | None):
+    """Descarga un video con N_m3u8DL-RE y opcionalmente une audio con ffmpeg."""
+    os.makedirs(save_dir, exist_ok=True)
+
     output_file = os.path.join(save_dir, file_name + '.mp4')
 
     if os.path.exists(output_file):
         logger.warning(f"El archivo '{file_name}.mp4' ya existe.")
         return
 
-    os.makedirs(save_dir, exist_ok=True)
-
     logger.info(f"Descargando video: '{file_name}'")
+
     command = [
         'N_m3u8DL-RE',
-        '-sv', f'res=({quality}|720)',
-        url,
-        '-ss', f'name={lang}',
+        '-sv', f'res={quality}|720|540|360',
+        '-ss', f'lang={lang}',
         '--save-dir', save_dir,
-        '--save-name', file_name
+        '--save-name', file_name,
+        url
     ]
 
+    if audio:
+        command += ['-sa', f'lang={audio}']
+
     try:
-        process = subprocess.Popen(command)
-        process.wait()
+        process = subprocess.run(command, check=False)
+
         if process.returncode != 0:
-            logger.error(f"Error al descargar '{file_name}'. Código de salida: {process.returncode}")
+            logger.error(f"Error al descargar '{file_name}'. Código: {process.returncode}")
+            return
+
+        if audio:
+            video_path = output_file
+            # audio_path = os.path.join(save_dir, f"{file_name}.{audio}.m4a")
+            audio_path = find_audio_file(save_dir, file_name, audio)
+            temp_path = os.path.join(save_dir, file_name + "_tmp.mp4")
+
+            if not os.path.exists(audio_path):
+                logger.error(f"Audio no encontrado: {audio_path}")
+                return
+
+            cmd_join_audio = [
+                "ffmpeg",
+                "-y",
+                "-i", video_path,
+                "-i", audio_path,
+                "-map", "0:v",
+                "-map", "0:a",
+                "-map", "1:a",
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-metadata", f"title={file_name} - Shared by alphaDRM",
+                "-metadata",'comment=Downloaded with dmstk-downloader (https://github.com/alpha-drm/dmstk-downloader)',
+                temp_path
+            ]
+
+            process_audio = subprocess.run(cmd_join_audio, check=False)
+
+            if process_audio.returncode == 0:
+                os.replace(temp_path, output_file)
+                os.remove(audio_path)
+            else:
+                logger.error("Error al unir audio con ffmpeg.")
+                return
+
+        logger.info(f"Archivo {file_name} descargado con éxito.")
+
     except FileNotFoundError:
         logger.critical("'N_m3u8DL-RE' no se encontró. Asegúrate de que esté en tu PATH y sea ejecutable.")
         exit(1) # Terminar el script si la dependencia clave no está
@@ -214,7 +275,7 @@ def download_attachments(session: requests.Session, url: str, save_dir: str):
         logger.error(f"Error al obtener la página de recursos: {e}")
 
 
-def scrape_course(url: str, browser: str, quality: str, lang: str):
+def scrape_course(url: str, browser: str, quality: str, lang: str, audio: str):
     """Función principal que orquesta el proceso de scraping y descarga del curso."""
     session = create_session(browser)
     if not session:
@@ -280,7 +341,7 @@ def scrape_course(url: str, browser: str, quality: str, lang: str):
                 for i, lesson in enumerate(data['videos'], 1):
                     lesson_title = sanitize_and_trim_filename(lesson['video']['title'], course_dir)
                     file_name = f"{i:02d} - {lesson_title}"
-                    download_video(lesson['video']['playbackURL'], unit_dir, file_name, quality, lang)
+                    download_video(lesson['video']['playbackURL'], unit_dir, file_name, quality, lang, audio)
 
             # Proyecto Final
             if data.get('video'):
@@ -319,13 +380,18 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-q", "--quality",
-        help="Resolución de video preferida (ej: 1080, 720).",
+        help="Resolución de video (ej: 1080, 720, 540).",
         default="1080",
     )
     parser.add_argument(
         "-l", "--lang",
-        help="Idioma preferido para los subtítulos (ej: Español, English).",
-        default="Español",
+        help="Idioma del subtítulo. (ej: es, en, pt, it, fr, de).",
+        default="es|es_la|Español (Latam)",
+    )
+    parser.add_argument(
+        "-a", "--audio",
+        help="Audio secundario para el video. Opcional (ej: es, en, pt, it, fr, de).",
+        default = None
     )
 
     args = parser.parse_args()
@@ -340,7 +406,7 @@ if __name__ == "__main__":
     else:
         start_time = time.time()
 
-        scrape_course(validated_url, args.browser, args.quality, args.lang)
+        scrape_course(validated_url, args.browser, args.quality, args.lang, args.audio)
 
         end_time = time.time()
         elapsed_time = end_time - start_time
