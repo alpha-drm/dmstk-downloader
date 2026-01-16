@@ -214,6 +214,7 @@ def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: 
                 "-map", "0:v",
                 "-map", "0:a",
                 "-map", "1:a",
+                "-metadata:s:a:1", "language=spa",
                 "-c:v", "copy",
                 "-c:a", "aac",
                 "-metadata", f"title={file_name} - Shared by alphaDRM",
