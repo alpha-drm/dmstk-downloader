@@ -81,14 +81,14 @@ def sanitize_and_trim_filename(name: str, base_path: str, limite: int = 200, tem
     ruta_completa = os.path.join(ruta_base, cleaned_name)
 
     if len(ruta_completa) <= (limite - temp_suffix_len):
-        return cleaned_name
+        return cleaned_name.rstrip(".")
 
     # 3. Calcular cuánto espacio hay para el nombre del archivo
     base_len = len(os.path.join(ruta_base, ""))
     espacio_disponible = limite - base_len - temp_suffix_len
 
     # 4. Recortar el nombre y devolver
-    nombre_recortado = cleaned_name[:espacio_disponible].rstrip()
+    nombre_recortado = cleaned_name[:espacio_disponible].rstrip(".")
 
     return nombre_recortado
 
@@ -199,7 +199,6 @@ def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: 
 
         if audio:
             video_path = output_file
-            # audio_path = os.path.join(save_dir, f"{file_name}.{audio}.m4a")
             audio_path = find_audio_file(save_dir, file_name, audio)
             temp_path = os.path.join(save_dir, file_name + "_tmp.mp4")
 
@@ -352,7 +351,7 @@ def scrape_course(url: str, browser: str, quality: str, lang: str, audio: str):
                 else:
                     project_title = "Proyecto Final"
                     project_dir = os.path.join(course_dir, project_title)
-                    download_video(data['video']['playbackURL'], project_dir, project_title, quality, lang)
+                    download_video(data['video']['playbackURL'], project_dir, project_title, quality, lang, audio)
 
         # --- 3. Descargar Recursos Adicionales ---
         resources_tag = soup.find('li', string=lambda t: t and ('Recursos adicionales' in t or 'Additional Resources' in t))
