@@ -158,8 +158,8 @@ python main.py <url> [opciones]
 Opciones:
 - `-b`, `--browser` Navegador para obtener las cookies {firefox, chrome, edge, brave}
 - `-q`, `--quality` Resolución de video (ej: 1080, 720, 540). Default: 1080
-- `-l`, `--lang` Idioma del subtítulo. (ej: es, en, pt, it, fr, de)
-- `-a`, `--audio` Audio secundario para el video. Opcional (ej: es, en, pt, it, fr, de)
+- `-l`, `--lang` Idioma del subtítulo. (ej: es, en, pt, it, fr, de) Default: es
+- `-a`, `--audio` Agregar otros audios al video. Opcional (ej: es, en, pt, it, fr, de)
 - `-h`, `--help` Ayuda
 
 Ejemplos:
@@ -181,11 +181,15 @@ python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-progr
 
 Seleccionar subtítulos. Ej: es, en, pt, it, fr, de. Default: Español (es).
 ```bash
-python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -l en
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -l en -l pt
 ```
-Opcional: seleccionar un audio secundario a parte del audio original del curso. Ej: es, en, pt, it, fr, de.
+Opcional: seleccionar otros audios a parte del audio original del curso. Ej: es, en, pt, it, fr, de.
 ```bash
-python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -a en
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -a en -a pt
+```
+Cargar cookies manualmente desde un archivo
+```bash
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course --cookies cookies.json
 ```
 
 ## Estructura de archivos
