@@ -23,6 +23,33 @@ USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101
 # --- CONFIGURACIÓN DEL LOGGER ---
 logger = logging.getLogger('Dmstk-Downloader')
 
+# ISO 639-1 → 639-2 (agregar más si es necesario.)
+ISO_639_1_TO_2 = {
+    "en": "eng",
+    "es": "spa",
+    "fr": "fra",
+    "it": "ita",
+    "pt": "por",
+    "de": "deu",
+    "tr": "tur",
+    "ru": "rus",
+    "id": "ind",
+    "ro": "rom",
+    "ja": "jpn",
+    "ar": "ara",
+    "nl": "nld",
+    "pl": "pol",
+    "sv": "swe",
+    "fi": "fin",
+    "no": "nor",
+    "da": "dan",
+    "cs": "ces",
+    "el": "ell",
+    "hi": "hin",
+    "th": "tha",
+    "vi": "vie"
+}
+
 
 def setup_logging():
     """Configura el logger para la consola y un archivo."""
@@ -59,6 +86,10 @@ def banner():
     print()
 
 # --- FUNCIONES AUXILIARES ---
+
+def iso639_2(lang: str) -> str:
+    return ISO_639_1_TO_2.get(lang.lower(), lang.lower())
+
 
 def sanitize_and_trim_filename(name: str, base_path: str, limite: int = 200, temp_suffix_len: int = 18) -> str:
     """
@@ -102,21 +133,64 @@ def validate_and_format_url(url: str) -> Optional[str]:
     return None
 
 
-def create_session(browser: str) -> Optional[requests.Session]:
-    """Crea una sesión de requests con las cookies del navegador especificado."""
-    try:
-        # Usar getattr para obtener la función de cookies dinámicamente
-        cookie_fn = getattr(browser_cookie3, browser)
-        cj = cookie_fn(domain_name="domestika")
-    except (AttributeError, browser_cookie3.BrowserCookieError) as e:
-        logger.error(f"No se pudieron cargar las cookies para '{browser}': {e}")
-        logger.error("Asegúrate de haber iniciado sesión en ese navegador.")
-        return None
-
+def create_session(browser: str, cookie_file: Optional[str] = None) -> Optional[requests.Session]:
+    """
+    Crea una sesión. Si se pasa cookie_file, carga desde JSON.
+    Si no, intenta cargar desde el navegador especificado.
+    """
     session = requests.Session()
     session.headers.update({'User-Agent': USER_AGENT})
-    session.cookies.update({cookie.name: cookie.value for cookie in cj})
-    return session
+
+    # --- OPCIÓN A: Cargar desde archivo JSON ---
+    if cookie_file:
+        if not os.path.exists(cookie_file):
+            logger.error(f"El archivo de cookies '{cookie_file}' no existe.")
+            return None
+
+        try:
+            logger.info(f"Cargando cookies desde archivo: {cookie_file}")
+            with open(cookie_file, 'r', encoding='utf-8') as f:
+                cookies_data = json.load(f)
+
+            # Soporte para formato lista (EditThisCookie) o dict simple
+            jar = requests.cookies.RequestsCookieJar()
+
+            if isinstance(cookies_data, list):
+                for cookie in cookies_data:
+                    if 'name' in cookie and 'value' in cookie:
+                        jar.set(
+                            cookie['name'],
+                            cookie['value'],
+                            domain=cookie.get('domain', '.domestika.org'),
+                            path=cookie.get('path', '/')
+                        )
+            elif isinstance(cookies_data, dict):
+                for name, value in cookies_data.items():
+                    jar.set(name, value, domain='.domestika.org', path='/')
+            else:
+                logger.error("Formato JSON de cookies no reconocido (debe ser dict o lista).")
+                return None
+
+            session.cookies.update(jar)
+            return session
+
+        except json.JSONDecodeError:
+            logger.error(f"El archivo '{cookie_file}' no es un JSON válido.")
+            return None
+        except Exception as e:
+            logger.error(f"Error inesperado leyendo cookies: {e}")
+            return None
+
+    # --- OPCIÓN B: Cargar desde Navegador (Código original) ---
+    try:
+        cookie_fn = getattr(browser_cookie3, browser)
+        cj = cookie_fn(domain_name="domestika")
+        session.cookies.update({cookie.name: cookie.value for cookie in cj})
+        return session
+    except (AttributeError, browser_cookie3.BrowserCookieError) as e:
+        logger.error(f"No se pudieron cargar las cookies para '{browser}': {e}")
+        logger.error("Asegúrate de haber iniciado sesión en ese navegador o usa el argumento --cookies.")
+        return None
 
 
 # --- FUNCIONES DE SCRAPING Y DESCARGA ---
@@ -166,10 +240,11 @@ def find_audio_file(save_dir: str, file_name: str, audio: str) -> str | None:
     return None
 
 
-def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: str, audio: str | None):
-    """Descarga un video con N_m3u8DL-RE y opcionalmente une audio con ffmpeg."""
+def download_video(url: str, save_dir: str, file_name: str, quality: str, langs: list, audios: list):
+    """
+    Descarga video con múltiples subtítulos y audios, y los une con FFmpeg dinámicamente.
+    """
     os.makedirs(save_dir, exist_ok=True)
-
     output_file = os.path.join(save_dir, file_name + '.mp4')
 
     if os.path.exists(output_file):
@@ -178,66 +253,120 @@ def download_video(url: str, save_dir: str, file_name: str, quality: str, lang: 
 
     logger.info(f"Descargando video: '{file_name}'")
 
+    # --- 1. Construcción dinámica del comando N_m3u8DL-RE ---
     command = [
         'N_m3u8DL-RE',
         '-sv', f'res={quality}|720|540|360',
-        '-ss', f'lang={lang}',
         '--save-dir', save_dir,
         '--save-name', file_name,
+        # '--no-log', # Opcional: para limpiar la salida
         url
     ]
 
-    if audio:
-        command += ['-sa', f'lang={audio}']
+    # Añadir cada idioma de subtítulo solicitado
+    if langs:
+        langs_param = '|'.join(langs)
+        command += ['-ss', f'lang={langs_param}:for=all']
+
+    # Añadir cada idioma de audio solicitado
+    if audios:
+        audio_param = '|'.join(audios)
+        command += ['-sa', f'lang={audio_param}:for=all']
 
     try:
         process = subprocess.run(command, check=False)
 
         if process.returncode != 0:
-            logger.error(f"Error al descargar '{file_name}'. Código: {process.returncode}")
+            logger.error(f"Error en descarga base de '{file_name}'.")
             return
 
-        if audio:
-            video_path = output_file
-            audio_path = find_audio_file(save_dir, file_name, audio)
-            temp_path = os.path.join(save_dir, file_name + "_tmp.mp4")
+        # --- 2. Lógica de Unión (Merging) con FFmpeg ---
+        # Si no hay audios extra que unir, terminamos aquí (asumiendo que N_m3u8DL-RE ya muxó el video)
+        # Pero si el script original separaba los audios .m4a, necesitamos unirlos.
 
-            if not os.path.exists(audio_path):
-                logger.error(f"Audio no encontrado: {audio_path}")
-                return
+        if not audios:
+            logger.info(f"Archivo {file_name} descargado (sin audios extra).")
+            return
 
-            cmd_join_audio = [
-                "ffmpeg",
-                "-y",
-                "-i", video_path,
-                "-i", audio_path,
-                "-map", "0:v",
-                "-map", "0:a",
-                "-map", "1:a",
-                "-metadata:s:a:1", "language=spa",
-                "-c:v", "copy",
-                "-c:a", "aac",
-                "-metadata", f"title={file_name} - Shared by alphaDRM",
-                "-metadata",'comment=Downloaded with dmstk-downloader (https://github.com/alpha-drm/dmstk-downloader)',
-                temp_path
-            ]
+        video_path = os.path.join(save_dir, f"{file_name}.mp4") # O el nombre que genere RE
+        # A veces RE genera .mkv o .ts si hay muchas pistas, asegurar extensión:
+        if not os.path.exists(video_path):
+             # Intentar buscar el archivo base generado si no es mp4 exacto
+             found_videos = [f for f in os.listdir(save_dir) if f.startswith(file_name) and f.endswith(('.mp4', '.mkv', '.ts')) and 'tmp' not in f]
+             if found_videos:
+                 video_path = os.path.join(save_dir, found_videos[0])
 
-            process_audio = subprocess.run(cmd_join_audio, check=False)
+        temp_path = os.path.join(save_dir, file_name + "_tmp.mp4")
 
-            if process_audio.returncode == 0:
-                os.replace(temp_path, output_file)
-                os.remove(audio_path)
+        # Construcción dinámica del comando FFmpeg
+        cmd_ffmpeg = ["ffmpeg", "-y", "-i", video_path]
+
+        # Listas para gestionar los mapeos
+        maps = ["-map", "0:v", "-map", "0:a"] # Mapeamos video y audio original
+        metadata = []
+        files_to_delete = []
+
+        input_index = 1 # El video es el input 0
+        audio_track_index = 1 # El audio original es track 0
+
+        # Buscar y añadir cada audio extra
+        audios_found = False
+        for audio_lang in audios:
+            audio_path = find_audio_file(save_dir, file_name, audio_lang)
+
+            if audio_path and os.path.exists(audio_path):
+                audios_found = True
+                cmd_ffmpeg += ["-i", audio_path]
+                files_to_delete.append(audio_path)
+
+                # Mapear este nuevo input
+                maps += ["-map", f"{input_index}:a"]
+
+                # Definir metadata del track (título y lenguaje)
+                lang_3 = iso639_2(audio_lang)
+                metadata += [
+                    f"-metadata:s:a:{audio_track_index}", f"language={lang_3}"
+                    # f"-metadata:s:a:{audio_track_index}", f"title={audio_lang.upper()}"
+                ]
+
+                input_index += 1
+                audio_track_index += 1
             else:
-                logger.error("Error al unir audio con ffmpeg.")
-                return
+                logger.warning(f"No se encontró archivo de audio para: {audio_lang}")
 
-        logger.info(f"Archivo {file_name} descargado con éxito.")
+        if not audios_found:
+            logger.info("No se encontraron audios externos para unir. Se mantiene el archivo original.")
+            return
 
-    except FileNotFoundError:
-        logger.critical("'N_m3u8DL-RE' no se encontró. Asegúrate de que esté en tu PATH y sea ejecutable.")
-        exit(1) # Terminar el script si la dependencia clave no está
+        # Comando final concatenado
+        cmd_join = (
+            cmd_ffmpeg +
+            maps +
+            ["-c:v", "copy", "-c:a", "aac"] +
+            metadata +
+            ["-metadata", f"title={file_name}"] +
+            [temp_path]
+        )
+
+        logger.info("Uniendo audios con FFmpeg...")
+        process_audio = subprocess.run(cmd_join, check=False)
+
+        if process_audio.returncode == 0:
+            os.replace(temp_path, output_file)
+            # Borrar los .m4a sueltos
+            for f in files_to_delete:
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
+            logger.info(f"Unión completada exitosamente: {file_name}")
+        else:
+            logger.error("Error al unir audios con ffmpeg.")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
     except Exception as e:
-        logger.error(f"Ocurrió un error inesperado con subprocess: {e}")
+        logger.error(f"Error inesperado en download_video: {e}")
 
 
 def download_attachments(session: requests.Session, url: str, save_dir: str):
@@ -275,9 +404,9 @@ def download_attachments(session: requests.Session, url: str, save_dir: str):
         logger.error(f"Error al obtener la página de recursos: {e}")
 
 
-def scrape_course(url: str, browser: str, quality: str, lang: str, audio: str):
+def scrape_course(url: str, browser: str, cookie_file: str, quality: str, langs: list, audios: list):
     """Función principal que orquesta el proceso de scraping y descarga del curso."""
-    session = create_session(browser)
+    session = create_session(browser, cookie_file)
     if not session:
         return
 
@@ -341,7 +470,7 @@ def scrape_course(url: str, browser: str, quality: str, lang: str, audio: str):
                 for i, lesson in enumerate(data['videos'], 1):
                     lesson_title = sanitize_and_trim_filename(lesson['video']['title'], course_dir)
                     file_name = f"{i:02d} - {lesson_title}"
-                    download_video(lesson['video']['playbackURL'], unit_dir, file_name, quality, lang, audio)
+                    download_video(lesson['video']['playbackURL'], unit_dir, file_name, quality, langs, audios)
 
             # Proyecto Final
             if data.get('video'):
@@ -352,7 +481,7 @@ def scrape_course(url: str, browser: str, quality: str, lang: str, audio: str):
                 else:
                     project_title = "Proyecto Final"
                     project_dir = os.path.join(course_dir, project_title)
-                    download_video(data['video']['playbackURL'], project_dir, project_title, quality, lang, audio)
+                    download_video(data['video']['playbackURL'], project_dir, project_title, quality, langs, audios)
 
         # --- 3. Descargar Recursos Adicionales ---
         resources_tag = soup.find('li', string=lambda t: t and ('Recursos adicionales' in t or 'Additional Resources' in t))
@@ -371,12 +500,21 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter
     )
 
-    parser.add_argument("url", help="URL completa del curso a descargar.")
+    parser.add_argument(
+        "url",
+        nargs="?",
+        help="URL del stream m3u8"
+    )
     parser.add_argument(
         "-b", "--browser",
         help="Navegador para extraer las cookies.",
         choices=["firefox", "chrome", "edge", "brave"],
         default="firefox",
+    )
+    parser.add_argument(
+        "-c", "--cookies",
+        help="Cargar cookies de un archivo JSON.",
+        default=None
     )
     parser.add_argument(
         "-q", "--quality",
@@ -385,16 +523,38 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-l", "--lang",
-        help="Idioma del subtítulo. (ej: es, en, pt, it, fr, de).",
-        default="es|es_la|Español (Latam)",
+        action="append",
+        choices=ISO_639_1_TO_2.keys(),
+        metavar="LANG",
+        help="Subtítulos (2 letras). Ej: -l en -l pt",
     )
     parser.add_argument(
         "-a", "--audio",
-        help="Audio secundario para el video. Opcional (ej: es, en, pt, it, fr, de).",
-        default = None
+        action="append",
+        choices=ISO_639_1_TO_2.keys(),
+        metavar="LANG",
+        help="Audios extra (2 letras). Ej: -a en -a pt",
+    )
+    parser.add_argument(
+        "--list-langs",
+        action="store_true",
+        help="Muestra los idiomas disponibles."
     )
 
     args = parser.parse_args()
+
+    if args.list_langs:
+        print("Idiomas disponibles:\n")
+        for k, iso3 in ISO_639_1_TO_2.items():
+            print(f"  {k:<4} → {iso3:<4}")
+        raise SystemExit(0)
+
+    if not args.url:
+        parser.error("el argumento 'url' es obligatorio (excepto con --list-langs)")
+
+    # Definir defaults si el usuario no pone nada
+    langs = args.lang if args.lang else ["es|es_la"] # Por defecto español
+    audios = args.audio if args.audio else []  # Por defecto ninguno extra
 
     setup_logging()
 
@@ -406,7 +566,7 @@ if __name__ == "__main__":
     else:
         start_time = time.time()
 
-        scrape_course(validated_url, args.browser, args.quality, args.lang, args.audio)
+        scrape_course(validated_url, args.browser, args.cookies, args.quality, langs, audios)
 
         end_time = time.time()
         elapsed_time = end_time - start_time
