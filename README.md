@@ -16,7 +16,7 @@ Herramienta `CLI` que permite a usuarios con suscripción descargar cursos para 
 </div>
 
 > [!NOTE]
-> Los gestores de descargas o extensiones utilizan el mismo método para descargar vídeos de una página. Esta herramienta sólo automatiza el proceso de un usuario haciendo esto manualmente en un navegador.
+> Los gestores de descargas o extensiones utilizan el mismo método para descargar vídeos de una página. Esta herramienta solo automatiza el proceso que un usuario haría manualmente en un navegador.
 
 ## Características
 
@@ -32,35 +32,27 @@ Herramienta `CLI` que permite a usuarios con suscripción descargar cursos para 
 
 ## Requisitos
 
-- Tener acceso a los cursos.
-- [git](https://git-scm.com/) (para clonar el repositorio)
-- [Python >=3.11](https://python.org/) (Añadirlo al PATH durante la instalación)
+- Tener acceso a la plataforma.
+- [git](https://git-scm.com/) (Opcional, para clonar el repositorio)
+- [Python >=3.11](https://www.python.org/downloads/)
+  * *Importante:* Al instalar, marca la casilla `Add Python to PATH`
 - [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE/releases)
-- [ffmpeg](https://ffmpeg.org/)
+  * Busca la versión para Windows (ej: win-x64.zip) y descarga el zip.
+  * Extrae el archivo `N_m3u8DL-RE.exe`
+- [ffmpeg](https://www.gyan.dev/ffmpeg/builds/)
+  * Busca la versión para Windows (Ej: ffmpeg-release-essentials) y descarga el zip.
+  * Dentro del zip, entra a la carpeta bin y extrae el archivo `ffmpeg.exe`
 
 ## Instalación
 
 ### Windows
 
-- Crear una carpeta llamada `tools` o el nombre que quieran en en el disco `C:\`, dentro copiar los ejecutables (N_m3u8DL-RE, ffmpeg) y por último agregar la ruta de la carpeta al `PATH` del sistema.
-
-- Opcional: copiar los ejecutables directamente en el directorio raíz del proyecto, no necesitas agregarlo al `PATH` del sistema.
-
-Estructura final: `C:\tools`
-
-```bash
-C:\tools
-   |── ffmpeg.exe
-   └── N_m3u8DL-RE.exe
-```
-
-#### Clonar el proyecto
+#### Clonar o descargar el proyecto
 
 Desde una terminal clonar el proyecto usando `GIT`, o simplemente descargar el archivo `ZIP` del repositorio.
 
 ```bash
 git clone https://github.com/alpha-drm/dmstk-downloader.git
-
 ```
 
 Ir al directorio del proyecto
@@ -84,28 +76,85 @@ env\Scripts\activate
 #### Instalar las dependencias
 
 ```bash
-pip install -r requirements.txt
+python pip install -r requirements.txt
 ```
 
-### Cookies
+### Configurar Herramientas Externas (Importante)
+
+#### Opción A: Añadirlas al PATH del sistema (recomendado)
+
+1. Crear una carpeta llamada `tools` (o el nombre que prefieras) en el disco `C:\`, 
+2. Copiar los ejecutables `N_m3u8DL-RE.exe` y `ffmpeg.exe` dentro de esa carpeta.
+3. Agregar la ruta de la carpeta al `PATH` del sistema.
+
+**Estructura final:**
+
+```text
+C:\tools
+   |── ffmpeg.exe
+   └── N_m3u8DL-RE.exe
+```
+
+#### Opción B: Método rápido (sin modificar el PATH)
+
+* Copiar los ejecutables `N_m3u8DL-RE.exe` y `ffmpeg.exe` directamente en el directorio raíz del proyecto.
+* No es necesario agregarlos al `PATH` del sistema.
+
+**Estructura final:**
+
+```text
+dmstk-downloader/
+├── env/
+├── Courses/
+├── main.py
+├── requirements.txt
+├── ffmpeg.exe           <-- Archivo pegado
+└── N_m3u8DL-RE.exe      <-- Archivo pegado
+```
+
+```md
+⚠️ Nota: La opción A es recomendable si usas estas herramientas en otros proyectos.
+```
+
+## Instrucciones de uso
 
 > [!IMPORTANT]
-> Estar logueado en la plataforma, usar `firefox` preferiblemente.
+> Antes de ejecutar el script debes estar logueado en la plataforma, usar `firefox` preferiblemente.
 
-El script utiliza cookies para autenticación y lo extrae automáticamente. Opcional: especificar de que navegador extraer las cookies con el argumento `-b` o `--browser`.
+El script utiliza **cookies para autenticación** y soporta **dos métodos**:
 
-Opciones:
+### Método 1: Cookies automáticas desde el navegador (por defecto)
 
-- `firefox` Default, recomendado.
+- El script extrae automáticamente las cookies del navegador.
+- Se recomienda usar **`firefox`**.
+- Puedes especificar el navegador con `-b` o `--browser`.
+
+**Navegadores soportados:**
+- `firefox` (default, recomendado)
 - `chrome`
 - `edge`
 - `brave`
 
-## Instrucciones de uso
+### Método 2: Cookies desde un archivo JSON (opcional)
+- Puedes cargar las cookies manualmente desde un archivo JSON usando `-c` o `--cookies` seguido del nombre del archivo.
+- Al usar este método no es necesario estar logueado en el navegador si ya tienes las cookies.
+- Si se especifica --cookies, el argumento --browser se ignora.
+
+**Puedes generar el archivo de cookies usando extensiones del navegador.**
+
+**Extensiones recomendadas: exporta las cookies en formato JSON.**
+- *Cookie-Editor*
+- *cookies.txt*
+- *Get cookies.txt LOCALLY*
+
+### Comandos
+
+Abre la terminal en la carpeta del proyecto (asegúrate de tener el entorno virtual activado):
 
 ```bash
 python main.py <url> [opciones]
 ```
+
 Opciones:
 - `-b`, `--browser` Navegador para obtener las cookies {firefox, chrome, edge, brave}
 - `-q`, `--quality` Resolución de video (ej: 1080, 720, 540). Default: 1080
@@ -115,14 +164,14 @@ Opciones:
 
 Ejemplos:
 
-Obtener las cookies del navegador por defecto `firefox`:
+Descarga estándar con calidad 1080p, audio original, subtítulos en español y usando las cookies de `Firefox` (Default):
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course
 ```
 
-Obtener las cookies de un navegador específico:
+Descarga usando un navegador diferente. (Posibles fallas en la extracción de cookies)
 ```bash
-python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course --browser edge
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -b edge
 ```
 
 Seleccionar la calidad del video. Default: 1080
@@ -130,25 +179,25 @@ Seleccionar la calidad del video. Default: 1080
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -q 720
 ```
 
-Seleccionar idioma del subtítulo. Ej: es, en, pt, it, fr, de. Default: Español (es).
+Seleccionar subtítulos. Ej: es, en, pt, it, fr, de. Default: Español (es).
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -l en
 ```
-Opcional: seleccionar audio secundario. Ej: es, en, pt, it, fr, de.
+Opcional: seleccionar un audio secundario a parte del audio original del curso. Ej: es, en, pt, it, fr, de.
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -a en
 ```
 
 ## Estructura de archivos
 
-Los cursos se descargan en la carpeta `Courses` con la siguiente estructura:
+El script creará automáticamente una carpeta llamada `Courses` y organizará todo por secciones:
 
-```bash
+```text
 Courses/
 └── Course_Name/
     └── Section/
         ├── 01 - video.mp4
-        └── 01 - subtitle.es.srt
+        └── 01 - subtitle.es.srt (Subtítulos)
 ```
 
 ## Feedback
