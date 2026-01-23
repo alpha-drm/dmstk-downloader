@@ -20,14 +20,14 @@ Herramienta `CLI` que permite a usuarios con suscripción descargar cursos para 
 
 ## Características
 
-- No evade sistemas de protección ni accede a contenido sin autorización.
+- No evade sistemas de protección ni accede a contenido no autorizado.
 - Requiere autenticación válida del usuario.
-- Funciona desde la línea de comandos `CLI`.
-- Descarga videos y otros recursos disponibles.
-- Permite elegir la calidad de los videos.
-- Permite elegir el idioma del subtítulo.
-- Permite reanudar descargas interrumpidas.
-- Organiza el contenido de forma estructurada.
+- Interfaz de línea de comandos `CLI`.
+- Descarga videos y recursos disponibles del curso.
+- Descarga de múltiples audios y subtítulos a elección del usuario.
+- Selección de calidad de video.
+- Reanudación de descargas sin repetir archivos ya completados.
+- Organización automática del contenido descargado.
 - Ideal para uso personal y educativo en modo offline.
 
 ## Requisitos
@@ -129,7 +129,7 @@ El script utiliza **cookies para autenticación** y soporta **dos métodos**:
 - Se recomienda usar **`firefox`**.
 - Puedes especificar el navegador con `-b` o `--browser`.
 
-**Navegadores soportados:**
+*Navegadores soportados:*
 - `firefox` (default, recomendado)
 - `chrome`
 - `edge`
@@ -140,14 +140,12 @@ El script utiliza **cookies para autenticación** y soporta **dos métodos**:
 - Al usar este método no es necesario estar logueado en el navegador si ya tienes las cookies.
 - Si se especifica --cookies, el argumento --browser se ignora.
 
-**Puedes generar el archivo de cookies usando extensiones del navegador.**
-
-**Extensiones recomendadas: exporta las cookies en formato JSON.**
+*Extensiones recomendadas para exportar las cookies en formato JSON:*
 - *Cookie-Editor*
 - *cookies.txt*
 - *Get cookies.txt LOCALLY*
 
-### Comandos
+### Ejemplos de comandos
 
 Abre la terminal en la carpeta del proyecto (asegúrate de tener el entorno virtual activado):
 
@@ -162,32 +160,40 @@ Opciones:
 - `-a`, `--audio` Agregar otros audios al video. Opcional (ej: es, en, pt, it, fr, de)
 - `-h`, `--help` Ayuda
 
-Ejemplos:
+ <hr>
 
-Descarga estándar con calidad 1080p, audio original, subtítulos en español y usando las cookies de `Firefox` (Default):
+ Descarga estándar con calidad 1080p, audio original, subtítulos en español y usando las cookies de `Firefox` (Default):
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course
 ```
+
+ <hr>
 
 Descarga usando un navegador diferente. (Posibles fallas en la extracción de cookies)
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -b edge
 ```
+ <hr>
 
 Seleccionar la calidad del video. Default: 1080
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -q 720
 ```
+ <hr>
 
 Seleccionar subtítulos. Ej: es, en, pt, it, fr, de. Default: Español (es).
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -l en -l pt
 ```
+ <hr>
+
 Opcional: seleccionar otros audios a parte del audio original del curso. Ej: es, en, pt, it, fr, de.
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course -a en -a pt
 ```
-Cargar cookies manualmente desde un archivo
+ <hr>
+ 
+Cargar cookies manualmente desde un archivo (el archivo debe estar en la carpeta raíz del proyecto)
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course --cookies cookies.json
 ```
