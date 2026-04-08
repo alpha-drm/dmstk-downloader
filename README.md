@@ -158,6 +158,7 @@ Opciones:
 - `-q`, `--quality` Resolución de video (ej: 1080, 720, 540). Default: 1080
 - `-l`, `--lang` Idioma del subtítulo. (ej: es, en, pt, it, fr, de) Default: es
 - `-a`, `--audio` Agregar otros audios al video. Opcional (ej: es, en, pt, it, fr, de)
+- `--no-cache` Forzar scraping e ignorar el caché guardado.
 - `-h`, `--help` Ayuda
 
  <hr>
@@ -196,6 +197,12 @@ python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-progr
 Cargar cookies manualmente desde un archivo (el archivo debe estar en la carpeta raíz del proyecto)
 ```bash
 python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course --cookies cookies.json
+```
+<hr>
+
+Si un curso se actualiza o dio error en la extracción, se puede forzar un nuevo escaneo omitiendo el caché guardado localmente.
+```bash
+python main.py https://www.domestika.org/es/courses/5228-introduccion-a-la-programacion-con-python/course --no-cache
 ```
 
 ## Estructura de archivos
