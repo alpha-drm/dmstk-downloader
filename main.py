@@ -474,7 +474,7 @@ class ContentDownloader:
         cmd = [
             "N_m3u8DL-RE",
             "-sv",
-            f"res={quality}|best",
+            f"res={quality}|720|540|360",
             "--save-dir",
             save_path,
             "--save-name",
